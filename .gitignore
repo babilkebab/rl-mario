@@ -1,5 +1,9 @@
 resources/
 
+.vscode
+
+ignored/
+
 .venv/
 env/
 __pycache__/
