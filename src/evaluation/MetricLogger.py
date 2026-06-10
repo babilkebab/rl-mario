@@ -2,6 +2,8 @@ import numpy as np
 import time, datetime
 import matplotlib.pyplot as plt
 
+
+
 class MetricLogger():
     def __init__(self, save_dir):
         self.save_log = save_dir / "log"
@@ -9,12 +11,14 @@ class MetricLogger():
             f.write(
                 f"{'Episode':>8}{'Step':>8}{'Epsilon':>10}{'MeanReward':>15}"
                 f"{'MeanLength':>15}{'MeanLoss':>15}{'MeanQValue':>15}"
-                f"{'TimeDelta':>15}{'Time':>20}\n"
+                f"{'TimeDelta':>15}{'LevelsCompleted':>18}{'Time':>20}\n"
             )
         self.ep_rewards_plot = save_dir / "reward_plot.jpg"
         self.ep_lengths_plot = save_dir / "length_plot.jpg"
         self.ep_avg_losses_plot = save_dir / "loss_plot.jpg"
         self.ep_avg_qs_plot = save_dir / "q_plot.jpg"
+        self.time_delta_plot = save_dir / "timedelta_plot.jpg"
+        self.levels_completed_plot = save_dir / "levels_completed_plot.jpg"
 
         # History metrics
         self.ep_rewards = []
@@ -27,6 +31,11 @@ class MetricLogger():
         self.moving_avg_ep_lengths = []
         self.moving_avg_ep_avg_losses = []
         self.moving_avg_ep_avg_qs = []
+        # Time deltas history
+        self.time_deltas = []
+        # Levels completed history
+        self.levels_completed = []
+        self.levels_completed_since_last_record = 0
 
         # Current episode metric
         self.init_episode()
@@ -43,7 +52,7 @@ class MetricLogger():
             self.curr_ep_q += q
             self.curr_ep_loss_length += 1
 
-    def log_episode(self):
+    def log_episode(self, level_completed=False):
         "Mark end of episode"
         self.ep_rewards.append(self.curr_ep_reward)
         self.ep_lengths.append(self.curr_ep_length)
@@ -55,6 +64,8 @@ class MetricLogger():
             ep_avg_q = np.round(self.curr_ep_q / self.curr_ep_loss_length, 5)
         self.ep_avg_losses.append(ep_avg_loss)
         self.ep_avg_qs.append(ep_avg_q)
+        if level_completed:
+            self.levels_completed_since_last_record += 1
 
         self.init_episode()
 
@@ -78,7 +89,9 @@ class MetricLogger():
 
         last_record_time = self.record_time
         self.record_time = time.time()
-        time_since_last_record = np.round(self.record_time - last_record_time, 3)
+        self.time_since_last_record = np.round(self.record_time - last_record_time, 3)
+        self.time_deltas.append(self.time_since_last_record)
+        self.levels_completed.append(self.levels_completed_since_last_record)
 
         print(
             f"Episode {episode} - "
@@ -88,7 +101,8 @@ class MetricLogger():
             f"Mean Length {mean_ep_length} - "
             f"Mean Loss {mean_ep_loss} - "
             f"Mean Q Value {mean_ep_q} - "
-            f"Time Delta {time_since_last_record} - "
+            f"Time Delta {self.time_since_last_record} - "
+            f"Levels Completed {self.levels_completed_since_last_record} - "
             f"Time {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}"
         )
 
@@ -96,7 +110,8 @@ class MetricLogger():
             f.write(
                 f"{episode:8d}{step:8d}{epsilon:10.3f}"
                 f"{mean_ep_reward:15.3f}{mean_ep_length:15.3f}{mean_ep_loss:15.3f}{mean_ep_q:15.3f}"
-                f"{time_since_last_record:15.3f}"
+                f"{self.time_since_last_record:15.3f}"
+                f"{self.levels_completed_since_last_record:18d}"
                 f"{datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'):>20}\n"
             )
 
@@ -104,3 +119,13 @@ class MetricLogger():
             plt.plot(getattr(self, f"moving_avg_{metric}"))
             plt.savefig(getattr(self, f"{metric}_plot"))
             plt.clf()
+
+        plt.plot(self.time_deltas)
+        plt.savefig(self.time_delta_plot)
+        plt.clf()
+
+        plt.plot(self.levels_completed)
+        plt.savefig(self.levels_completed_plot)
+        plt.clf()
+
+        self.levels_completed_since_last_record = 0

@@ -77,7 +77,7 @@ for e in range(episodes):
         if done or info['flag_get']:
             break
 
-    logger.log_episode()
+    logger.log_episode(level_completed=bool(info.get('flag_get', False)))
 
     if e % 20 == 0:
         logger.record(
